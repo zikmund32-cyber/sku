@@ -3,20 +3,22 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3000
 
 # Expose the port Render will connect to
 EXPOSE 3000
 
-# Install dependencies
+# 1) Nainstaluj všechny dependencies (včetně dev), aby bylo dostupné `prisma`
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci && npm cache clean --force
 
-# Copy rest of app
+# 2) Zbytek aplikace
 COPY . .
 
-# Build
+# 3) Vygeneruj Prisma client
+RUN npx prisma generate
+
+# 4) Buildni aplikaci
 RUN npm run build
 
-# Start the Remix/React Router server
+# 5) Start serveru (react-router-serve ./build/server/index.js)
 CMD ["npm", "run", "start"]
