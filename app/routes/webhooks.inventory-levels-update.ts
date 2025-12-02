@@ -1,7 +1,7 @@
 // app/routes/webhooks.inventory-levels-update.ts
 
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import shopify, { authenticate } from "../shopify.server";
 
 /**
  * Synchronizace skladů pro všechny varianty se stejným SKU.
@@ -148,16 +148,22 @@ async function syncSameSkuInventory(
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { topic, admin, payload } = await authenticate.webhook(request);
+  const { topic, shop, session, payload } = await authenticate.webhook(request);
 
   console.log("[SKU-app] Webhook hit:", topic, "(inventory-levels-update)");
   console.log("[SKU-app] Raw payload:", JSON.stringify(payload, null, 2));
+
+  // Vytvoříme admin GraphQL klienta ze session
+  const admin = new shopify.api.clients.Graphql({
+    session,
+  });
 
   if (topic !== "INVENTORY_LEVELS_UPDATE") {
     return new Response(null, { status: 200 });
   }
 
   const body = payload as any;
+  ...
 
   const triggerInventoryItemLegacyId = body?.inventory_item_id;
   const triggerLocationLegacyId = body?.location_id;
