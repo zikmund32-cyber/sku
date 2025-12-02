@@ -155,20 +155,25 @@ async function syncSameSkuInventory(
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { topic, payload, session } = await authenticate.webhook(request);
+  const authResult = await authenticate.webhook(request) as any;
+
+  const { topic, shop, payload, admin, session } = authResult;
 
   console.log("[SKU-app] Webhook hit:", topic, "(inventory-levels-update)");
+  console.log("[SKU-app] Shop:", shop);
+  console.log("[SKU-app] Has session:", !!session, "Has admin:", !!admin);
   console.log("[SKU-app] Raw payload:", JSON.stringify(payload, null, 2));
 
-  // Ošetření – bez session nebudeme volat API
-  if (!session) {
-    console.error(
-      "[SKU-app same-sku-sync] Missing session from authenticate.webhook result"
-    );
+  // Pokud to není INVENTORY_LEVELS_UPDATE, ukonči:
+  if (topic !== "INVENTORY_LEVELS_UPDATE") {
     return new Response(null, { status: 200 });
   }
 
-  if (topic !== "INVENTORY_LEVELS_UPDATE") {
+  // Bez admin klienta nemá smysl pokračovat
+  if (!admin) {
+    console.error(
+      "[SKU-app same-sku-sync] Missing admin client in webhook auth – cannot sync inventory"
+    );
     return new Response(null, { status: 200 });
   }
 
@@ -191,7 +196,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    await syncSameSkuInventory(session, {
+    await syncSameSkuInventory(admin, {
       triggerInventoryItemLegacyId,
       triggerLocationLegacyId,
       newAvailable,
